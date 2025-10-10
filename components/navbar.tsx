@@ -61,6 +61,10 @@ export function Navbar() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => router.push(`/dashboard/${user.rol}/perfil`)}>
+                    <User className="mr-2 h-4 w-4" />
+                    Perfil
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push(`/dashboard/${user.rol}`)}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     Dashboard

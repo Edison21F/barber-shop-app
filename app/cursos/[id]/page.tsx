@@ -94,7 +94,7 @@ export default function CursoDetailPage() {
     }
 
     // Navigate to enrollment page or add to cart
-    router.push(`/matricula?cursoId=${curso?._id}&periodoId=${periodoId}`)
+    router.push(`/matriculas?cursoId=${curso?._id}&periodoId=${periodoId}`)
   }
 
   const handleAddToCart = async (periodoId: string) => {

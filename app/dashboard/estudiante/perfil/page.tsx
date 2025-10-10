@@ -307,7 +307,7 @@ export default function EstudiantePerfilPage() {
         </Card>
 
         {/* Course History */}
-        {profile && profile.historialCursos.length > 0 && (
+        {profile && profile.historialCursos && profile.historialCursos.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Historial de Cursos</CardTitle>

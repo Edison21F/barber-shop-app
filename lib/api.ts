@@ -38,6 +38,8 @@ export interface Curso {
   precio: number
   imagen?: string
   cupoMaximo: number
+  objetivos: string[]
+  requisitos: string[]
 }
 
 export interface Periodo {
@@ -68,7 +70,7 @@ export interface EstudianteProfile {
   periodoActual?: string
   estado: "activo" | "inactivo" | "graduado" | "retirado"
   fechaMatricula?: string
-  historialCursos: {
+  historialCursos?: {
     cursoId: string
     periodoId: string
     fechaInicio: string
@@ -163,32 +165,64 @@ export class ApiError extends Error {
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
+  const contentType = response.headers.get("content-type")
+  
+  // Si no es JSON, intentar leer como texto para mejor debugging
+  if (!contentType || !contentType.includes("application/json")) {
+    const text = await response.text()
+    console.error("Response is not JSON:", text)
+    throw new ApiError(response.status, "La respuesta del servidor no es JSON válido")
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Error desconocido" }))
-    throw new ApiError(response.status, error.message || "Error en la solicitud")
+    throw new ApiError(response.status, error.message || error.error || "Error en la solicitud")
   }
+  
   return response.json()
 }
 
 export const authApi = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(credentials),
-    })
-    return handleResponse<AuthResponse>(response)
+    try {
+      console.log('Attempting login to:', `${API_BASE_URL}/login`)
+      
+      const response = await fetch(`${API_BASE_URL}/login`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(credentials),
+      })
+
+      console.log('Login response status:', response.status)
+      return handleResponse<AuthResponse>(response)
+    } catch (error) {
+      console.error('Login error:', error)
+      throw error
+    }
   },
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(data),
-    })
-    return handleResponse<AuthResponse>(response)
+    try {
+      console.log('Attempting register to:', `${API_BASE_URL}/register`)
+      
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(data),
+      })
+
+      console.log('Register response status:', response.status)
+      return handleResponse<AuthResponse>(response)
+    } catch (error) {
+      console.error('Register error:', error)
+      throw error
+    }
   },
 }
 
@@ -201,7 +235,7 @@ export const cursosApi = {
   },
 
   async getById(id: string): Promise<Curso> {
-    const response = await fetch(`${API_BASE_URL}/curso/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/cursos/${id}`, {
       headers: {
         Authorization: `Bearer ${getAuthToken()}`,
       },
@@ -223,7 +257,7 @@ export const cursosApi = {
 
 export const estudianteApi = {
   async getProfile(): Promise<EstudianteProfile> {
-    const response = await fetch(`${API_BASE_URL}/estudiante/profile`, {
+    const response = await fetch(`${API_BASE_URL}/profile`, {
       headers: {
         Authorization: `Bearer ${getAuthToken()}`,
       },
@@ -233,7 +267,7 @@ export const estudianteApi = {
   },
 
   async updateProfile(data: Partial<EstudianteProfile>): Promise<EstudianteProfile> {
-    const response = await fetch(`${API_BASE_URL}/estudiante/profile`, {
+    const response = await fetch(`${API_BASE_URL}/profile`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -246,7 +280,7 @@ export const estudianteApi = {
   },
 
   async getMatriculas(): Promise<Matricula[]> {
-    const response = await fetch(`${API_BASE_URL}/matricula`, {
+    const response = await fetch(`${API_BASE_URL}/matriculas/estudiante`, {
       headers: {
         Authorization: `Bearer ${getAuthToken()}`,
       },
@@ -324,7 +358,7 @@ export const matriculaApi = {
     descuento?: number
     observaciones?: string
   }): Promise<Matricula> {
-    const response = await fetch(`${API_BASE_URL}/matricula`, {
+    const response = await fetch(`${API_BASE_URL}/matriculas`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -337,7 +371,7 @@ export const matriculaApi = {
   },
 
   async getAll(): Promise<Matricula[]> {
-    const response = await fetch(`${API_BASE_URL}/matricula`, {
+    const response = await fetch(`${API_BASE_URL}/matriculas`, {
       headers: {
         Authorization: `Bearer ${getAuthToken()}`,
       },
@@ -347,7 +381,7 @@ export const matriculaApi = {
   },
 
   async getById(id: string): Promise<Matricula> {
-    const response = await fetch(`${API_BASE_URL}/matricula/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/matriculas/${id}`, {
       headers: {
         Authorization: `Bearer ${getAuthToken()}`,
       },
@@ -364,7 +398,7 @@ export const matriculaApi = {
       observaciones?: string
     },
   ): Promise<Matricula> {
-    const response = await fetch(`${API_BASE_URL}/matricula/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/matriculas/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -374,6 +408,15 @@ export const matriculaApi = {
       body: JSON.stringify(data),
     })
     return handleResponse<Matricula>(response)
+  },
+}
+
+export const profileApi = {
+  async get(): Promise<AuthResponse["usuario"] & { cedula: string; telefono: string; activo: boolean; fechaRegistro: string; ultimoAcceso: string }> {
+    const response = await fetch(`${API_BASE_URL}/profile`, {
+      credentials: "include",
+    })
+    return handleResponse<AuthResponse["usuario"] & { cedula: string; telefono: string; activo: boolean; fechaRegistro: string; ultimoAcceso: string }>(response)
   },
 }
 
@@ -426,6 +469,8 @@ export const docenteApi = {
 }
 
 export function setAuthToken(token: string) {
+  // The backend sets the cookie, so we don't need to set it here
+  // But we can store the token in localStorage for backup
   if (typeof window !== "undefined") {
     localStorage.setItem("auth_token", token)
   }
@@ -433,6 +478,15 @@ export function setAuthToken(token: string) {
 
 export function getAuthToken(): string | null {
   if (typeof window !== "undefined") {
+    // First try to read from cookie set by backend
+    const cookies = document.cookie.split(';')
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split('=')
+      if (name === 'auth_token') {
+        return value
+      }
+    }
+    // Fallback to localStorage
     return localStorage.getItem("auth_token")
   }
   return null
@@ -440,6 +494,7 @@ export function getAuthToken(): string | null {
 
 export function removeAuthToken() {
   if (typeof window !== "undefined") {
+    document.cookie = 'auth_token=; path=/; max-age=0'
     localStorage.removeItem("auth_token")
     localStorage.removeItem("user_data")
   }

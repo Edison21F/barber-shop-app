@@ -73,6 +73,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
       { name: "Dashboard", href: "/dashboard/admin", icon: LayoutDashboard },
       { name: "Cursos", href: "/dashboard/admin/cursos", icon: BookOpen },
       { name: "Usuarios", href: "/dashboard/admin/usuarios", icon: User },
+      { name: "Perfil", href: "/dashboard/admin/perfil", icon: User },
     ],
   }
 

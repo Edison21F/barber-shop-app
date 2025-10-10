@@ -9,6 +9,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Reescritura para las imágenes subidas
   async rewrites() {
     return [
       {
