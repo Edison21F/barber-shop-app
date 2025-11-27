@@ -34,8 +34,20 @@ export default function EstudianteClasesPage() {
   }
 
   const now = new Date()
+  now.setHours(0, 0, 0, 0) // Normalizar 'ahora' al inicio del día
+
   const proximasClases = clases
-    .filter((clase) => new Date(clase.fecha) >= now && clase.estado === "programada")
+    .filter((clase) => {
+      const fechaClase = new Date(clase.fecha)
+      // Ajustar fechaClase para compensar zona horaria si es necesario, 
+      // pero por ahora asumimos que la fecha viene correcta o usamos UTC
+      // Mejor enfoque: comparar strings de fecha local o timestamps normalizados
+
+      // Normalizar fecha de clase al inicio del día (local)
+      const fechaClaseLocal = new Date(fechaClase.getFullYear(), fechaClase.getMonth(), fechaClase.getDate())
+
+      return fechaClaseLocal >= now && clase.estado === "programada"
+    })
     .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
 
   const clasesFinalizadas = clases

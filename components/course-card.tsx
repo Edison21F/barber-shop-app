@@ -1,8 +1,8 @@
 import Link from "next/link"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Clock, TrendingUp } from "lucide-react"
+import { Clock, TrendingUp, CheckCircle2, Scissors } from "lucide-react"
 import type { Curso } from "@/lib/api"
 
 interface CourseCardProps {
@@ -10,9 +10,9 @@ interface CourseCardProps {
 }
 
 const nivelColors = {
-  basico: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  intermedio: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  avanzado: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  basico: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800",
+  intermedio: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800",
+  avanzado: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
 }
 
 const nivelLabels = {
@@ -23,54 +23,65 @@ const nivelLabels = {
 
 export function CourseCard({ curso }: CourseCardProps) {
   return (
-    <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
-      <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-primary/20 to-secondary/20">
+    <Card className="group relative flex h-full flex-col overflow-hidden border-border/50 bg-background transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/20">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 opacity-60 transition-opacity group-hover:opacity-40" />
+
+        <Badge className={`absolute top-4 right-4 z-20 backdrop-blur-md shadow-sm ${nivelColors[curso.nivel]}`}>
+          {nivelLabels[curso.nivel]}
+        </Badge>
+
         {curso.imagen ? (
           <img
-            src={curso.imagen.startsWith('http') ? curso.imagen : `/api${curso.imagen}`}
+            src={curso.imagen}
             alt={curso.nombre}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
           />
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <span className="text-6xl font-bold text-muted-foreground/20">{curso.codigo}</span>
+          <div className="flex h-full items-center justify-center bg-secondary/5">
+            <Scissors className="h-16 w-16 text-secondary/40" />
           </div>
         )}
-        <div className="absolute right-2 top-2">
-          <Badge className={nivelColors[curso.nivel]}>{nivelLabels[curso.nivel]}</Badge>
-        </div>
       </div>
 
-      <CardHeader>
-        <div className="space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="text-xl font-semibold leading-tight text-balance">{curso.nombre}</h3>
+      <CardHeader className="relative z-10 -mt-12 pb-2">
+        <div className="rounded-lg bg-background/95 p-4 shadow-sm backdrop-blur-sm border border-border/50">
+          <div className="flex items-start justify-between gap-4 mb-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+              <Clock className="h-3.5 w-3.5" />
+              <span>{curso.duracionSemanas} semanas</span>
+            </div>
+            <span className="text-lg font-bold text-primary">${curso.precio}</span>
           </div>
-          <p className="text-sm text-muted-foreground">{curso.codigo}</p>
+          <CardTitle className="line-clamp-1 text-xl">{curso.nombre}</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1 font-mono">{curso.codigo}</p>
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1">
-        <p className="mb-4 line-clamp-3 text-sm text-muted-foreground">{curso.descripcion}</p>
+      <CardContent className="flex-1 pt-4">
+        <p className="mb-6 line-clamp-3 text-sm text-muted-foreground leading-relaxed">
+          {curso.descripcion}
+        </p>
 
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span>{curso.duracionSemanas} semanas</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground/80">
+            <TrendingUp className="h-4 w-4 text-primary/70 shrink-0" />
             <span>Cupo máximo: {curso.cupoMaximo} estudiantes</span>
           </div>
+          {(curso.objetivos || []).slice(0, 1).map((obj, i) => (
+            <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground/80">
+              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+              <span className="line-clamp-1">{obj}</span>
+            </div>
+          ))}
         </div>
       </CardContent>
 
-      <CardFooter className="flex items-center justify-between border-t pt-4">
-        <div>
-          <p className="text-2xl font-bold text-primary">${curso.precio.toFixed(2)}</p>
-        </div>
-        <Link href={`/cursos/${curso._id}`}>
-          <Button>Ver Detalles</Button>
+      <CardFooter className="pt-2 pb-6">
+        <Link href={`/cursos/${curso._id}`} className="w-full">
+          <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors" variant="secondary">
+            Ver Detalles
+          </Button>
         </Link>
       </CardFooter>
     </Card>

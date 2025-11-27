@@ -38,8 +38,14 @@ export default function EstudianteDashboard() {
 
       // Filter upcoming classes
       const now = new Date()
+      now.setHours(0, 0, 0, 0)
+
       const upcoming = clasesData
-        .filter((clase) => new Date(clase.fecha) >= now && clase.estado === "programada")
+        .filter((clase) => {
+          const fechaClase = new Date(clase.fecha)
+          const fechaClaseLocal = new Date(fechaClase.getFullYear(), fechaClase.getMonth(), fechaClase.getDate())
+          return fechaClaseLocal >= now && clase.estado === "programada"
+        })
         .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
         .slice(0, 5)
       setProximasClases(upcoming)
@@ -138,7 +144,7 @@ export default function EstudianteDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {profile?.historialCursos.filter((c) => c.estado === "completado").length || 0}
+                {profile?.historialCursos?.filter((c) => c.estado === "completado")?.length || 0}
               </div>
               <p className="text-xs text-muted-foreground">Total completados</p>
             </CardContent>

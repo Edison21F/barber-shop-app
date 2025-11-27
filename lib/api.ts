@@ -1,5 +1,7 @@
 const API_BASE_URL = "/api"
 
+const normalizeRole = (rol: string) => (rol === "administrador" ? "admin" : rol)
+
 export interface LoginCredentials {
   email: string
   password: string
@@ -12,7 +14,7 @@ export interface RegisterData {
   cedula: string
   telefono: string
   password: string
-  rol: "estudiante" | "docente" | "admin"
+  rol: "estudiante" | "docente" | "administrador"
   avatar?: string
 }
 
@@ -84,7 +86,7 @@ export interface Matricula {
   _id: string
   estudianteId: string
   periodoId: string
-  estado: "pendiente" | "pagada" | "completada" | "cancelada"
+  estado: "pendiente" | "pagada" | "completada" | "cancelada" | "activa" | "suspendida" | "retirada"
   metodoPago?: string
   montoPagado: number
   montoPendiente: number
@@ -127,6 +129,7 @@ export interface Clase {
 }
 
 export interface CarritoItem {
+  _id?: string
   cursoId: string
   periodoId: string
 }
@@ -166,7 +169,7 @@ export class ApiError extends Error {
 
 async function handleResponse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get("content-type")
-  
+
   // Si no es JSON, intentar leer como texto para mejor debugging
   if (!contentType || !contentType.includes("application/json")) {
     const text = await response.text()
@@ -178,7 +181,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
     const error = await response.json().catch(() => ({ message: "Error desconocido" }))
     throw new ApiError(response.status, error.message || error.error || "Error en la solicitud")
   }
-  
+
   return response.json()
 }
 
@@ -186,10 +189,10 @@ export const authApi = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
       console.log('Attempting login to:', `${API_BASE_URL}/login`)
-      
+
       const response = await fetch(`${API_BASE_URL}/login`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
@@ -207,10 +210,10 @@ export const authApi = {
   async register(data: RegisterData): Promise<AuthResponse> {
     try {
       console.log('Attempting register to:', `${API_BASE_URL}/register`)
-      
+
       const response = await fetch(`${API_BASE_URL}/register`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
@@ -245,7 +248,7 @@ export const cursosApi = {
   },
 
   async getPeriodosByCurso(cursoId: string): Promise<Periodo[]> {
-    const response = await fetch(`${API_BASE_URL}/periodo?cursoId=${cursoId}`, {
+    const response = await fetch(`${API_BASE_URL}/periodos?cursoId=${cursoId}`, {
       headers: {
         Authorization: `Bearer ${getAuthToken()}`,
       },
@@ -290,7 +293,7 @@ export const estudianteApi = {
   },
 
   async getClases(): Promise<Clase[]> {
-    const response = await fetch(`${API_BASE_URL}/clase`, {
+    const response = await fetch(`${API_BASE_URL}/clases`, {
       headers: {
         Authorization: `Bearer ${getAuthToken()}`,
       },
@@ -315,17 +318,18 @@ export const carritoApi = {
   },
 
   async getItems(): Promise<CarritoItem[]> {
-    const response = await fetch(`${API_BASE_URL}/carrito/items`, {
+    const response = await fetch(`${API_BASE_URL}/carrito`, {
       headers: {
         Authorization: `Bearer ${getAuthToken()}`,
       },
       credentials: "include",
     })
-    return handleResponse<CarritoItem[]>(response)
+    const cart = await handleResponse<{ items: CarritoItem[] }>(response)
+    return cart.items || []
   },
 
-  async removeItem(cursoId: string, periodoId: string): Promise<{ message: string }> {
-    const response = await fetch(`${API_BASE_URL}/carrito/items/${cursoId}/${periodoId}`, {
+  async removeItem(itemId: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/carrito/items/${itemId}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${getAuthToken()}`,
@@ -414,15 +418,53 @@ export const matriculaApi = {
 export const profileApi = {
   async get(): Promise<AuthResponse["usuario"] & { cedula: string; telefono: string; activo: boolean; fechaRegistro: string; ultimoAcceso: string }> {
     const response = await fetch(`${API_BASE_URL}/profile`, {
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
       credentials: "include",
     })
     return handleResponse<AuthResponse["usuario"] & { cedula: string; telefono: string; activo: boolean; fechaRegistro: string; ultimoAcceso: string }>(response)
+  },
+  async update(data: { nombres?: string; apellidos?: string; telefono?: string; password?: string; avatar?: string }): Promise<AuthResponse["usuario"] & { cedula: string; telefono: string; activo: boolean; fechaRegistro: string; ultimoAcceso: string }> {
+    const response = await fetch(`${API_BASE_URL}/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+    return handleResponse<AuthResponse["usuario"] & { cedula: string; telefono: string; activo: boolean; fechaRegistro: string; ultimoAcceso: string }>(response)
+  },
+  async updateAvatar(file: File): Promise<{ message: string; user: { id: string; nombres: string; apellidos: string; email: string; avatar: string } }> {
+    const fd = new FormData()
+    fd.append('avatar', file)
+    const response = await fetch(`${API_BASE_URL}/avatar`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+      credentials: 'include',
+      body: fd,
+    })
+    return handleResponse<{ message: string; user: { id: string; nombres: string; apellidos: string; email: string; avatar: string } }>(response)
+  },
+  async delete(id: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/matriculas/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+      credentials: "include",
+    })
+    return handleResponse<{ message: string }>(response)
   },
 }
 
 export const docenteApi = {
   async getProfile(): Promise<DocenteProfile> {
-    const response = await fetch(`${API_BASE_URL}/docente/profile`, {
+    const response = await fetch(`${API_BASE_URL}/docentes/profile`, {
       headers: {
         Authorization: `Bearer ${getAuthToken()}`,
       },
@@ -432,7 +474,7 @@ export const docenteApi = {
   },
 
   async updateProfile(data: Partial<DocenteProfile>): Promise<DocenteProfile> {
-    const response = await fetch(`${API_BASE_URL}/docente/profile`, {
+    const response = await fetch(`${API_BASE_URL}/docentes/profile`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -445,7 +487,7 @@ export const docenteApi = {
   },
 
   async getClases(): Promise<Clase[]> {
-    const response = await fetch(`${API_BASE_URL}/clase`, {
+    const response = await fetch(`${API_BASE_URL}/clases`, {
       headers: {
         Authorization: `Bearer ${getAuthToken()}`,
       },
@@ -455,7 +497,7 @@ export const docenteApi = {
   },
 
   async updateClase(id: string, data: Partial<Clase>): Promise<Clase> {
-    const response = await fetch(`${API_BASE_URL}/clase/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/clases/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -502,7 +544,8 @@ export function removeAuthToken() {
 
 export function setUserData(user: AuthResponse["usuario"]) {
   if (typeof window !== "undefined") {
-    localStorage.setItem("user_data", JSON.stringify(user))
+    const normalized = { ...user, rol: normalizeRole(user.rol) }
+    localStorage.setItem("user_data", JSON.stringify(normalized))
   }
 }
 
@@ -511,11 +554,325 @@ export function getUserData(): AuthResponse["usuario"] | null {
     const data = localStorage.getItem("user_data")
     if (data) {
       try {
-        return JSON.parse(data)
+        const parsed = JSON.parse(data)
+        if (parsed?.rol) {
+          parsed.rol = normalizeRole(parsed.rol)
+        }
+        return parsed
       } catch {
         return null
       }
     }
   }
   return null
+}
+
+// ---- Admin helpers ----
+export interface Usuario {
+  _id: string
+  nombres: string
+  apellidos: string
+  email: string
+  rol: string
+  cedula?: string
+  telefono?: string
+  avatar?: string
+  activo?: boolean
+}
+
+export const adminApi = {
+  async getCursos(): Promise<Curso[]> {
+    const response = await fetch(`${API_BASE_URL}/cursos`, {
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+      credentials: "include",
+    })
+    return handleResponse<Curso[]>(response)
+  },
+
+  async getProfesores(): Promise<Usuario[]> {
+    const response = await fetch(`${API_BASE_URL}/profesores`, {
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+      credentials: "include",
+    })
+    return handleResponse<Usuario[]>(response)
+  },
+
+  async createCurso(input: {
+    nombre: string
+    codigo: string
+    descripcion: string
+    duracionSemanas: number
+    nivel: "basico" | "intermedio" | "avanzado"
+    precio: number
+    cupoMaximo: number
+    requisitos?: string[]
+    objetivos?: string[]
+    imagenFile?: File | null
+  }): Promise<Curso> {
+    const fd = new FormData()
+    fd.append('nombre', input.nombre)
+    fd.append('codigo', input.codigo)
+    fd.append('descripcion', input.descripcion)
+    fd.append('duracionSemanas', String(input.duracionSemanas))
+    fd.append('nivel', input.nivel)
+    fd.append('precio', String(input.precio))
+    fd.append('cupoMaximo', String(input.cupoMaximo))
+    for (const r of input.requisitos || []) fd.append('requisitos', r)
+    for (const o of input.objetivos || []) fd.append('objetivos', o)
+    if (input.imagenFile) fd.append('imagen', input.imagenFile)
+
+    const response = await fetch(`${API_BASE_URL}/cursos`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+      credentials: 'include',
+      body: fd,
+    })
+    return handleResponse<Curso>(response)
+  },
+
+  async updateCurso(id: string, input: {
+    nombre?: string
+    codigo?: string
+    descripcion?: string
+    duracionSemanas?: number
+    nivel?: "basico" | "intermedio" | "avanzado"
+    precio?: number
+    cupoMaximo?: number
+    activo?: boolean
+    requisitos?: string[]
+    objetivos?: string[]
+    imagenFile?: File | null
+  }): Promise<Curso> {
+    const fd = new FormData()
+    if (input.nombre != null) fd.append('nombre', input.nombre)
+    if (input.codigo != null) fd.append('codigo', input.codigo)
+    if (input.descripcion != null) fd.append('descripcion', input.descripcion)
+    if (input.duracionSemanas != null) fd.append('duracionSemanas', String(input.duracionSemanas))
+    if (input.nivel != null) fd.append('nivel', input.nivel)
+    if (input.precio != null) fd.append('precio', String(input.precio))
+    if (input.cupoMaximo != null) fd.append('cupoMaximo', String(input.cupoMaximo))
+    if (input.activo != null) fd.append('activo', String(input.activo))
+    if (input.requisitos) for (const r of input.requisitos) fd.append('requisitos', r)
+    if (input.objetivos) for (const o of input.objetivos) fd.append('objetivos', o)
+    if (input.imagenFile) fd.append('imagen', input.imagenFile)
+
+    const response = await fetch(`${API_BASE_URL}/cursos/${id}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+      credentials: 'include',
+      body: fd,
+    })
+    return handleResponse<Curso>(response)
+  },
+
+  async deleteCurso(id: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/cursos/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+      credentials: 'include',
+    })
+    return handleResponse<{ message: string }>(response)
+  },
+
+  async getUsuarios(rol?: string): Promise<Usuario[]> {
+    const url = rol ? `${API_BASE_URL}/usuarios?rol=${encodeURIComponent(rol)}` : `${API_BASE_URL}/usuarios`
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+      credentials: 'include',
+    })
+    return handleResponse<Usuario[]>(response)
+  },
+
+  async getEstudiantes(): Promise<any[]> {
+    const response = await fetch(`${API_BASE_URL}/estudiantes`, {
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+      credentials: 'include',
+    })
+    return handleResponse<any[]>(response)
+  },
+
+  async createUsuario(input: {
+    nombres: string
+    apellidos: string
+    email: string
+    cedula: string
+    telefono?: string
+    password: string
+    rol: 'estudiante' | 'docente' | 'administrador'
+    avatarFile?: File | null
+  }): Promise<{ user: Usuario }> {
+    const fd = new FormData()
+    fd.append('nombres', input.nombres)
+    fd.append('apellidos', input.apellidos)
+    fd.append('email', input.email)
+    fd.append('cedula', input.cedula)
+    if (input.telefono) fd.append('telefono', input.telefono)
+    fd.append('password', input.password)
+    fd.append('rol', input.rol)
+    if (input.avatarFile) fd.append('avatar', input.avatarFile)
+
+    const response = await fetch(`${API_BASE_URL}/usuarios`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+      credentials: 'include',
+      body: fd,
+    })
+    return handleResponse<{ user: Usuario }>(response)
+  },
+
+  async updateUsuario(id: string, data: Partial<Omit<Usuario, '_id'>> & { password?: string }): Promise<Usuario> {
+    const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+    return handleResponse<Usuario>(response)
+  },
+
+  async deleteUsuario(id: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+      credentials: 'include',
+    })
+    return handleResponse<{ message: string }>(response)
+  },
+
+  // ----- Clases -----
+  async getClases(): Promise<Clase[]> {
+    const response = await fetch(`${API_BASE_URL}/clases`, {
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+    })
+    return handleResponse<Clase[]>(response)
+  },
+  async createClase(data: Omit<Clase, "_id" | "asistencia"> & { asistencia?: Clase["asistencia"] }): Promise<Clase> {
+    const response = await fetch(`${API_BASE_URL}/clases`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+      body: JSON.stringify(data),
+    })
+    return handleResponse<Clase>(response)
+  },
+  async updateClase(id: string, data: Partial<Clase>): Promise<Clase> {
+    const response = await fetch(`${API_BASE_URL}/clases/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+      body: JSON.stringify(data),
+    })
+    return handleResponse<Clase>(response)
+  },
+  async deleteClase(id: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/clases/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+    })
+    return handleResponse<{ message: string }>(response)
+  },
+
+  // ----- Modulos -----
+  async getModulos(): Promise<any[]> {
+    const response = await fetch(`${API_BASE_URL}/modulos`, {
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+    })
+    return handleResponse<any[]>(response)
+  },
+  async createModulo(data: {
+    cursoId: string
+    nombre: string
+    numeroModulo: number
+    descripcion: string
+    duracionHoras: number
+    objetivos?: string[]
+    orden: number
+  }): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/modulos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+      body: JSON.stringify(data),
+    })
+    return handleResponse<any>(response)
+  },
+  async updateModulo(id: string, data: Partial<any>): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/modulos/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+      body: JSON.stringify(data),
+    })
+    return handleResponse<any>(response)
+  },
+  async deleteModulo(id: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/modulos/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+    })
+    return handleResponse<{ message: string }>(response)
+  },
+
+  // ----- Periodos -----
+  async getPeriodos(params?: { cursoId?: string }): Promise<Periodo[]> {
+    const query = params?.cursoId ? `?cursoId=${encodeURIComponent(params.cursoId)}` : ""
+    const response = await fetch(`${API_BASE_URL}/periodos${query}`, {
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+    })
+    return handleResponse<Periodo[]>(response)
+  },
+  async createPeriodo(data: {
+    cursoId: string
+    nombre: string
+    codigo: string
+    fechaInicio: string
+    fechaFin: string
+    cuposDisponibles: number
+    horario: string
+    docentesPrincipales?: string[]
+    observaciones?: string
+  }): Promise<Periodo> {
+    const response = await fetch(`${API_BASE_URL}/periodos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+      body: JSON.stringify(data),
+    })
+    return handleResponse<Periodo>(response)
+  },
+  async updatePeriodo(id: string, data: Partial<Periodo>): Promise<Periodo> {
+    const response = await fetch(`${API_BASE_URL}/periodos/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+      body: JSON.stringify(data),
+    })
+    return handleResponse<Periodo>(response)
+  },
+  async deletePeriodo(id: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/periodos/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+      credentials: "include",
+    })
+    return handleResponse<{ message: string }>(response)
+  },
 }

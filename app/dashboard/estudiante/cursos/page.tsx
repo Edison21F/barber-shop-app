@@ -29,18 +29,14 @@ export default function EstudianteCursosPage() {
     try {
       const matriculasData = await estudianteApi.getMatriculas()
 
-      // Load details for each matricula
-      const matriculasWithDetails = await Promise.all(
-        matriculasData.map(async (matricula) => {
-          try {
-            const periodo = await cursosApi.getById(matricula.periodoId)
-            const curso = await cursosApi.getById(periodo._id)
-            return { ...matricula, curso, periodo }
-          } catch (error) {
-            return matricula
-          }
-        }),
-      )
+      // Map matriculas directly since backend now returns populated data
+      const matriculasWithDetails = matriculasData.map((matricula: any) => ({
+        ...matricula,
+        curso: matricula.cursoId,
+        periodo: matricula.periodoId,
+        cursoId: matricula.cursoId?._id || matricula.cursoId,
+        periodoId: matricula.periodoId?._id || matricula.periodoId
+      }))
 
       setMatriculas(matriculasWithDetails)
     } catch (error) {
@@ -54,21 +50,27 @@ export default function EstudianteCursosPage() {
     }
   }
 
-  const estadoColors = {
+  const estadoColors: Record<string, string> = {
     pendiente: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
     pagada: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
     completada: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
     cancelada: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+    activa: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    suspendida: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+    retirada: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
   }
 
-  const estadoLabels = {
+  const estadoLabels: Record<string, string> = {
     pendiente: "Pendiente",
     pagada: "Pagada",
     completada: "Completada",
     cancelada: "Cancelada",
+    activa: "Activa",
+    suspendida: "Suspendida",
+    retirada: "Retirada",
   }
 
-  const activas = matriculas.filter((m) => m.estado === "pagada" || m.estado === "completada")
+  const activas = matriculas.filter((m) => m.estado === "pagada" || m.estado === "completada" || m.estado === "activa")
   const pendientes = matriculas.filter((m) => m.estado === "pendiente")
   const historial = matriculas.filter((m) => m.estado === "cancelada")
 

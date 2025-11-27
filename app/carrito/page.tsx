@@ -50,21 +50,14 @@ export default function CarritoPage() {
     try {
       const carritoItems = await carritoApi.getItems()
 
-      // Load details for each item
-      const itemsWithDetails = await Promise.all(
-        carritoItems.map(async (item) => {
-          try {
-            const [curso, periodos] = await Promise.all([
-              cursosApi.getById(item.cursoId),
-              cursosApi.getPeriodosByCurso(item.cursoId),
-            ])
-            const periodo = periodos.find((p) => p._id === item.periodoId)
-            return { ...item, curso, periodo }
-          } catch (error) {
-            return item
-          }
-        }),
-      )
+      // Map items directly since backend now returns populated data
+      const itemsWithDetails = carritoItems.map((item: any) => ({
+        ...item,
+        curso: item.cursoId,
+        periodo: item.periodoId,
+        cursoId: item.cursoId._id,
+        periodoId: item.periodoId._id
+      }))
 
       setItems(itemsWithDetails)
     } catch (error) {
@@ -78,9 +71,9 @@ export default function CarritoPage() {
     }
   }
 
-  const handleRemoveItem = async (cursoId: string, periodoId: string) => {
+  const handleRemoveItem = async (itemId: string) => {
     try {
-      await carritoApi.removeItem(cursoId, periodoId)
+      await carritoApi.removeItem(itemId)
       toast({
         title: "Eliminado",
         description: "El curso ha sido eliminado del carrito.",
@@ -198,7 +191,7 @@ export default function CarritoPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleRemoveItem(item.cursoId, item.periodoId)}
+                          onClick={() => item._id && handleRemoveItem(item._id)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
@@ -258,24 +251,38 @@ export default function CarritoPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="efectivo">Efectivo</SelectItem>
-                              <SelectItem value="transferencia">Transferencia Bancaria</SelectItem>
+                              <SelectItem value="transferencia">Transferencia Banco Pichincha</SelectItem>
                               <SelectItem value="tarjeta">Tarjeta de Crédito/Débito</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
 
-                        <div className="rounded-lg bg-muted p-4">
-                          <div className="mb-2 flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Total a pagar</span>
+                        {metodoPago === "transferencia" && (
+                          <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-900 border border-blue-100">
+                            <p className="font-semibold mb-2">Datos para transferencia:</p>
+                            <p>Banco: <span className="font-medium">Banco Pichincha</span></p>
+                            <p>Tipo de Cuenta: <span className="font-medium">Corriente</span></p>
+                            <p>Número: <span className="font-medium">2100xxxxxx</span></p>
+                            <p>Titular: <span className="font-medium">Barber Shop Academy</span></p>
+                            <p>RUC: <span className="font-medium">179xxxxxxx001</span></p>
+                            <p className="mt-2 text-xs opacity-80">
+                              * Por favor sube el comprobante en tu perfil después de realizar el pago.
+                            </p>
                           </div>
-                          <p className="text-2xl font-bold text-primary">${total.toFixed(2)}</p>
-                        </div>
-
-                        <Button onClick={handleCheckout} disabled={isProcessing} className="w-full" size="lg">
-                          {isProcessing ? "Procesando..." : "Confirmar Matrícula"}
-                        </Button>
+                        )}
                       </div>
+
+                      <div className="rounded-lg bg-muted p-4">
+                        <div className="mb-2 flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Total a pagar</span>
+                        </div>
+                        <p className="text-2xl font-bold text-primary">${total.toFixed(2)}</p>
+                      </div>
+
+                      <Button onClick={handleCheckout} disabled={isProcessing} className="w-full" size="lg">
+                        {isProcessing ? "Procesando..." : "Confirmar Matrícula"}
+                      </Button>
                     </DialogContent>
                   </Dialog>
 
@@ -294,6 +301,6 @@ export default function CarritoPage() {
           </div>
         )}
       </div>
-    </div>
+    </div >
   )
 }

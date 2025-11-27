@@ -26,7 +26,7 @@ export default function RegisterPage() {
     telefono: "",
     password: "",
     confirmPassword: "",
-    rol: "estudiante" as "estudiante" | "docente" | "admin",
+    rol: "estudiante" as "estudiante" | "docente" | "administrador",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -164,7 +164,7 @@ export default function RegisterPage() {
               <Label htmlFor="rol">Tipo de Usuario</Label>
               <Select
                 value={formData.rol}
-                onValueChange={(value: "estudiante" | "docente" | "admin") => setFormData({ ...formData, rol: value })}
+                onValueChange={(value: "estudiante" | "docente" | "administrador") => setFormData({ ...formData, rol: value })}
                 disabled={isLoading}
               >
                 <SelectTrigger id="rol">
@@ -173,7 +173,7 @@ export default function RegisterPage() {
                 <SelectContent>
                   <SelectItem value="estudiante">Estudiante</SelectItem>
                   <SelectItem value="docente">Docente</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="administrador">Administrador</SelectItem>
                 </SelectContent>
               </Select>
             </div>

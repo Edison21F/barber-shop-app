@@ -27,14 +27,17 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
   const [user, setUser] = useState<ReturnType<typeof getUserData>>(null)
   const [isOpen, setIsOpen] = useState(false)
 
+  const normalizeRole = (r: string) => (r === 'administrador' ? 'admin' : r)
+
   useEffect(() => {
     const userData = getUserData()
     if (!userData) {
       router.push("/login")
       return
     }
-    if (userData.rol !== role) {
-      router.push(`/dashboard/${userData.rol}`)
+    const normalized = normalizeRole(userData.rol)
+    if (normalized !== role) {
+      router.push(`/dashboard/${normalized}`)
       return
     }
     setUser(userData)
@@ -72,6 +75,10 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
     admin: [
       { name: "Dashboard", href: "/dashboard/admin", icon: LayoutDashboard },
       { name: "Cursos", href: "/dashboard/admin/cursos", icon: BookOpen },
+      { name: "Módulos", href: "/dashboard/admin/modulos", icon: BookOpen },
+      { name: "Periodos", href: "/dashboard/admin/periodos", icon: Calendar },
+      { name: "Clases", href: "/dashboard/admin/clases", icon: Calendar },
+      { name: "Matrículas", href: "/dashboard/admin/matriculas", icon: Calendar },
       { name: "Usuarios", href: "/dashboard/admin/usuarios", icon: User },
       { name: "Perfil", href: "/dashboard/admin/perfil", icon: User },
     ],
